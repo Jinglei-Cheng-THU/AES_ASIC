@@ -23,6 +23,6 @@ module IO_Interface(
   //above are interactions with key expansion core.
   output clk_slow   //divided slow clock
   );
-
+  
 
 endmodule
