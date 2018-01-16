@@ -1,8 +1,8 @@
-module aes_tbox(a,d);
+module aes_tbox(a,t);
 input	[7:0]	a;
-output	[23:0]	d;
-reg	[23:0]	d;
-
+output [31:0]	t;
+reg	[23:0]d;
+assign t = {d[15:8],d[23:16],d[7:0],d[7:0]};
 always @(a)
 	case(a)		// synopsys full_case parallel_case
 	8'h00: d=24'b101001011100011001100011;
