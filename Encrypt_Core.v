@@ -10,7 +10,7 @@ module Encrypt_Core (
   input [128:0]Key,
   input op, //op = 1: encrypt; op = 0: decrypt
   output reg [3:0]Addr,
-  output reg Core_Busy,
+  output reg Core_Full,
   output reg c_ready,
   output reg [127:0]Ciphertext
 );
@@ -53,15 +53,15 @@ module Encrypt_Core (
     if (~rst_n) begin
       rounds <= 4'h0;
       round_result <= 127'h0;
-      Core_Busy <= 0;
+      Core_Full <= 0;
       Addr <= 4'h1;
       operation <= 0;
     end
     else begin
-      if (~Core_Busy) begin
+      if (~Core_Full) begin
         if (t_ready) begin
           round_result <= Plain_text;
-          Core_Busy <= 1;
+          Core_Full <= 1;
           operation <= op;
           rounds <= Nr;
           if(op) begin
@@ -73,7 +73,7 @@ module Encrypt_Core (
         end
         else begin
           round_result <= round_result;
-          Core_Busy <= Core_Busy;
+          Core_Full <= Core_Full;
           rounds <= rounds;
           operation <= operation;
           Addr <= Addr;
@@ -84,7 +84,7 @@ module Encrypt_Core (
         rounds <= rounds;
         if (Key[128]) begin
           if((operation && (Addr == rounds))|(~operation && (Addr == 4'h0))) begin
-            Core_Busy <= 0;
+            Core_Full <= 0;
             Addr <= 4'h1;
           end
           else begin
@@ -94,14 +94,14 @@ module Encrypt_Core (
             else begin
               Addr <= Addr - 1;
             end
-            Core_Busy <= Core_Busy;
+            Core_Full <= Core_Full;
           end
           round_result <= round_result_w;
         end
         else begin
           round_result <= round_result;
           Addr <= Addr;
-          Core_Busy <= Core_Busy;
+          Core_Full <= Core_Full;
         end
       end
     end
