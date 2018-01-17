@@ -67,7 +67,7 @@ module Key_Expansion (
   reg [31 : 0]  tmp_sboxw;
   reg           round_key_update;
   reg [3 : 0]   num_rounds;
-  reg [127 : 0] tmp_round_key;
+  reg [127 : 0] tmp_ex_key;
 
   wire [31 : 0] sboxw;
   wire [31 : 0] new_sboxw;
@@ -75,7 +75,7 @@ module Key_Expansion (
   //----------------------------------------------------------------
   // Concurrent assignments for ports.
   //----------------------------------------------------------------
-  assign round_key  = tmp_round_key;
+  assign ex_key  = tmp_ex_key;
   assign ready      = ready_reg;
   assign sboxw      = tmp_sboxw;
 
@@ -129,7 +129,7 @@ module Key_Expansion (
   //----------------------------------------------------------------
   always @*
     begin : key_mem_read
-      tmp_round_key = key_mem[Addr];
+      tmp_ex_key = key_mem[Addr];
     end // key_mem_read
 
   //----------------------------------------------------------------
@@ -187,8 +187,8 @@ module Key_Expansion (
               begin
                 if (round_ctr_reg == 0)
                   begin
-                    key_mem_new   = key[255 : 128];
-                    prev_key1_new = key[255 : 128];
+                    key_mem_new   = CipherKey[255 : 128];
+                    prev_key1_new = CipherKey[255 : 128];
                     prev_key1_we  = 1'b1;
                     rcon_next     = 1'b1;
                   end
@@ -210,14 +210,14 @@ module Key_Expansion (
               begin
                 if (round_ctr_reg == 0)
                   begin
-                    key_mem_new   = key[255 : 128];
-                    prev_key0_new = key[255 : 128];
+                    key_mem_new   = CipherKey[255 : 128];
+                    prev_key0_new = CipherKey[255 : 128];
                     prev_key0_we  = 1'b1;
                   end
                 else if (round_ctr_reg == 1)
                   begin
-                    key_mem_new   = key[127 : 0];
-                    prev_key1_new = key[127 : 0];
+                    key_mem_new   = CipherKey[127 : 0];
+                    prev_key1_new = CipherKey[127 : 0];
                     prev_key1_we  = 1'b1;
                     rcon_next     = 1'b1;
                   end
@@ -392,13 +392,6 @@ module Key_Expansion (
       endcase // case (key_mem_ctrl_reg)
 
     end // key_mem_ctrl
-
-    
-endmodule // aes_key_mem
-
-
-
-
 
 
 endmodule // Key_Expansion
