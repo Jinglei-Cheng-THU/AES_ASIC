@@ -1,0 +1,20 @@
+module aes_key_mem(
+                   input wire            clk,
+                   input wire            rst_n,
+
+                   input wire [255 : 0]  key,
+                   input wire [3 : 0]    keylen,
+                   input wire            init,
+
+                   input wire  [3 : 0]   round,
+                   output wire [127 : 0] round_key,
+
+`timescale	1ns/100ps
+module Key_Expansion (
+  input wire clk,
+  input wire rst_n,
+  input wire [255:0] CipherKey, //Ciphter Key provided by the host, start from lower bits.
+  input wire k_ready,  //CiphterKey data is ready.
+  input wire [3:0] Nk,    //Nk in the document.
+  input wire [3:0] Addr,  //address of required expanded key.
+  output wire [127:0] ex_key                    
