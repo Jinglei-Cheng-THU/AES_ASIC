@@ -138,7 +138,7 @@ module Key_Expansion (
   // The round key generator logic for AES-128 and AES-256.
   //----------------------------------------------------------------
   always @*
-    begin:
+    begin:round_key_gen
       reg [31 : 0] w0, w1, w2, w3, w4, w5, w6, w7;
       reg [31 : 0] k0, k1, k2, k3;
       reg [31 : 0] rconw, rotstw, tw, trw;
@@ -385,7 +385,7 @@ module Key_Expansion (
   // The FSM that controls the round key generation.
   //----------------------------------------------------------------
   always @*
-    begin:
+    begin:key_mem_ctrl
       // Default assignments.
       ready_new        = 1'b0;
       ready_we         = 1'b0;
@@ -440,3 +440,5 @@ module Key_Expansion (
 
     end // key_mem_ctrl
 
+
+endmodule // Key_Expansion

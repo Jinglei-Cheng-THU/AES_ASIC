@@ -1,8 +1,9 @@
+`include "divide16.v"
 module IO_Interface(
   input CLK,
   input RSTB,
   input [7:0]DIN,
-  input [5:0]ADDR,
+  input [6:0]ADDR,
   input WR,
   input START,
   output reg OK,
@@ -14,17 +15,204 @@ module IO_Interface(
   output reg[127:0]Plain_text,
   output reg[3:0]Nr,   //number of encryption rounds, 10, 12, 14 for 128, 192, 256 keys seperately
   output reg t_ready,   //indicate Plain_text data is ready
-  output reg t_reset,   //reset Encrypt Core
+  output t_reset,   //reset Encrypt Core
   output reg op,        //indicate operations, 0 for decryption and 1 for encryption
   //above are interactions with Encrypt Core.
   output reg [256:0]CipherKey,  //CipherKey, fill unused bits with 0.
   output reg [3:0]Nk_val, //value of Nk, 4 for 128 bits key, 6 for 192 and 8 for 256
   output reg k_ready,   //indicate CipherKey data is ready
-  output reg k_reset,   //reset key expansion Core
+  output k_reset,   //reset key expansion Core
   //above are interactions with key expansion core.
-  input clk_slow   //divided slow clock
+  output clk_slow   //divided slow clock
 );
-reg [2:0]c; 
+  reg inter_ok;
+  divide16 div_16(CLK,clk_slow);
+  wire [127:0] Plain_text_w;
+  wire [255:0] CipherKey_w;
+
+  reg operation;
+  reg [7:0]Data_reg[63:0];
+  reg [2:0]NK;
+  reg CORE_FULL;
+
+  generate
+    genvar k;
+    for (k = 0; k < 16; k = k + 1) begin : assign_Plain_text_w
+      assign Plain_text_w[8*k+7:8*k] = (Data_reg[k]);
+    end
+    for (k = 0; k < 32; k = k + 1) begin : assign_CipherKey_w
+      assign CipherKey_w[8*k+7:8*k] = (Data_reg[k+32]);
+    end
+  endgenerate
+
+  generate
+    genvar i;
+    for (i = 0; i < 64; i = i + 1)begin: gen_reg
+      if(i < 16 || (i > 31)) begin
+        always @ (posedge CLK or negedge RSTB) begin
+          if (~RSTB) begin
+            Data_reg[i] <= 0;
+          end
+          else begin
+            if (WR && ~ADDR[6] && ADDR[5:0] == i[5:0]) begin
+              Data_reg[i] <= DIN;
+            end else begin
+              Data_reg[i] <= Data_reg[i];
+            end
+          end
+        end
+      end
+      else begin
+        always @ (posedge CLK or negedge RSTB) begin
+          if(c_ready) begin
+            Data_reg[i] <= Ciphertext[8*(i-16)+7:8*(i-16)];
+          end
+          else begin
+            Data_reg[i] <= Data_reg[i];
+          end
+        end
+      end
+    end
+  endgenerate
+
+  always @ (posedge CLK or negedge RSTB) begin
+    if(~RSTB) begin
+      operation <= 0;
+      NK <=3'h0;
+    end
+    else begin
+      if(WR && ADDR[6]) begin
+        if(ADDR[0]) begin
+          NK <= DIN[2:0];
+          operation <= operation;
+        end
+        else begin
+          NK <= NK;
+          operation <= DIN[0];
+        end
+      end
+    end
+  end
+
+  always @ (posedge CLK or negedge RSTB) begin
+    if(~RSTB) begin
+      DOUT <= 8'h00;
+    end
+    else begin
+      if(~WR) begin
+        if(ADDR[6]) begin
+          if(ADDR[1]) begin
+            DOUT <= {7'h00,CORE_FULL};
+          end
+          else begin
+            if(ADDR[0]) begin
+              DOUT <= {4'h0,NK};
+            end
+            else begin
+              DOUT <= {7'h00,operation};
+            end
+          end
+        end
+        else begin
+          DOUT <= Data_reg[ADDR[5:0]];
+        end
+      end
+      else begin
+        DOUT <= 8'h00;
+      end
+    end
+  end
+
+  always @ (posedge CLK or negedge RSTB) begin
+    if(~RSTB) begin
+      inter_ok <= 0;
+    end
+    else begin
+      if(START && ~CORE_FULL) begin
+        inter_ok <= 1;
+      end
+      else begin
+        if(t_ready && k_ready) begin
+          inter_ok <= 0;
+        end
+        else begin
+          inter_ok <= inter_ok;
+        end
+      end
+    end
+  end
+
+  always @ (posedge CLK or negedge RSTB) begin
+    if(~RSTB) begin
+      inter_ok <= 0;
+      OK <= 0;
+    end
+    else begin
+      if(c_ready) begin
+        OK <= 1;
+      end
+      else begin
+        if(START) begin
+          OK <= 0;
+        end
+        else begin
+          OK <= OK;
+        end
+      end
+    end
+  end
+
+  always @ (posedge CLK or negedge RSTB) begin
+    if(~RSTB) begin
+      CORE_FULL <= 0;
+    end
+    else begin
+      CORE_FULL <= Core_Full;
+    end
+  end
+
+  always @ (posedge clk_slow or negedge RSTB) begin
+    if(~RSTB) begin
+      Nr <= 4'h0;
+      t_ready <= 0;
+      Plain_text <= 127'h0;
+      op <= 0;
+      k_ready <= 0;
+      CipherKey <= 256'h0;
+      Nk_val <= 4'h0;
+    end
+    else begin
+      if(inter_ok) begin
+        case (NK)
+          3'b011: Nr <= 4'd10;
+          3'b101: Nr <= 4'd12;
+          3'b111: Nr <= 4'd14;
+          default: Nr <= 4'd0;
+        endcase
+        Nk_val <= {1'b0,NK};
+        Plain_text <= Plain_text_w;
+        CipherKey <= CipherKey_w;
+        k_ready <= 1;
+        t_ready <= 1;
+        op <= operation;
+      end
+      else begin
+        Nr <= 4'h0;
+        t_ready <= 0;
+        Plain_text <= 127'h0;
+        op <= 0;
+        k_ready <= 0;
+        CipherKey <= 256'h0;
+        Nk_val <= 4'h0;
+      end
+    end
+  end
+
+  assign t_reset = (RSTB);
+  assign k_reset = (RSTB);
+endmodule
+/*
+reg [2:0]c;
 reg ED;
 reg [2:0]NK;
 reg [7:0]TX0;
@@ -91,8 +279,8 @@ reg [7:0]KY28;
 reg [7:0]KY29;
 reg [7:0]KY30;
 reg [7:0]KY31;
-initial 
-begin 
+initial
+begin
 ED<=1'd0;
 NK<=3'd0;
 TX0<=8'd0;
@@ -158,7 +346,7 @@ KY28<=8'd0;
 KY29<=8'd0;
 KY30<=8'd0;
 KY31<=8'd0;
-DOUT<=8'd0; 
+DOUT<=8'd0;
 OK<=0;
 end
 always @(posedge CLK or negedge RSTB)
@@ -230,10 +418,10 @@ KY28<=8'd0;
 KY29<=8'd0;
 KY30<=8'd0;
 KY31<=8'd0;
-DOUT<=8'd0;  
+DOUT<=8'd0;
 OK<=0;
 end
-else 
+else
   begin
 if(WR==1)
   begin
@@ -385,8 +573,8 @@ begin
     begin
       OK<=0;
       case(NK)
-        3'b011 : 
-        begin 
+        3'b011 :
+        begin
         Nk_val<=4'b0100;
         Nr<=4'b1010;
         CipherKey[127:0]<= {KY15,KY14,KY13,KY12,KY11,KY10,KY09,KY08,KY07,KY06,KY05,KY04,KY03,KY02,KY01,KY0};
@@ -394,7 +582,7 @@ begin
         k_ready<=1;
         k_reset<=1;
         end
-        3'b101 : 
+        3'b101 :
         begin
         Nk_val<=4'b0110;
         Nr<=4'b1100;
@@ -403,7 +591,7 @@ begin
         k_ready<=1;
         k_reset<=1;
         end
-        3'b111 : 
+        3'b111 :
         begin
         Nk_val<=4'b1000;
         Nr<=4'b1110;
@@ -426,8 +614,9 @@ begin
     if(t_ready)
     OK<=1;
     end
-    
+
     end
-    
+
 endmodule
 
+*/
