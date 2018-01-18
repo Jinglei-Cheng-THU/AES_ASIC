@@ -440,5 +440,3 @@ module Key_Expansion (
 
     end // key_mem_ctrl
 
-
-endmodule // Key_Expansion
