@@ -9,7 +9,7 @@ module TOP (
   output [7:0]DOUT
   );
 
-  wire [127:0]Ciphertext
+  wire [127:0]Ciphertext;
   wire Core_Full;
   wire c_ready;
   wire [127:0]Plain_text;
