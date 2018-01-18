@@ -22,7 +22,7 @@ module TOP (
   wire k_ready;
   wire k_reset;
   wire clk_slow;
-  wire [128:0]Key;
+  wire [127:0]Key;
   wire [3:0]Addr;
 
   IO_Interface io(.CLK(CLK),.RSTB(RSTB),.DIN(DIN),.ADDR(ADDR),.WR(WR),

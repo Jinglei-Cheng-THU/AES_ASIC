@@ -15,7 +15,7 @@ module Key_Expansion (
   //----------------------------------------------------------------
   // Parameters.
   //----------------------------------------------------------------
-  
+
   localparam AES_128_BIT_KEY = 3'h3;
   localparam AES_192_BIT_KEY = 3'h5;
   localparam AES_256_BIT_KEY = 3'h7;
@@ -63,14 +63,18 @@ module Key_Expansion (
   reg         rcon_we;
   reg         rcon_set;
   reg         rcon_next;
+  reg [7 : 0] tmp_rcon;
 
   reg [31 : 0]  tmp_sboxw;
+  reg [31 : 0]  tmp_sboxw_192;
   reg           round_key_update;
   reg [3 : 0]   num_rounds;
   reg [127 : 0] tmp_ex_key;
 
   wire [31 : 0] sboxw;
+  wire [31 : 0] sboxw_192;
   wire [31 : 0] new_sboxw;
+  wire [31 : 0] new_sboxw_192;
   wire ready;
   //----------------------------------------------------------------
   // Concurrent assignments for ports.
@@ -78,11 +82,16 @@ module Key_Expansion (
   assign ex_key  = tmp_ex_key;
   assign ready      = ready_reg;
   assign sboxw      = tmp_sboxw;
+  assign sboxw_192  = tmp_sboxw_192;
 
   aes_sbox sb1(.a(sboxw[7 : 0]),.d(new_sboxw[7 : 0])),
            sb2(.a(sboxw[15 : 8]),.d(new_sboxw[15 : 8])),
            sb3(.a(sboxw[23 : 16]),.d(new_sboxw[23 : 16])),
            sb4(.a(sboxw[31 : 24]),.d(new_sboxw[31 : 24]));
+  aes_sbox sb5(.a(sboxw_192[7 : 0]),.d(new_sboxw_192[7 : 0])),
+           sb6(.a(sboxw_192[15 : 8]),.d(new_sboxw_192[15 : 8])),
+           sb7(.a(sboxw_192[23 : 16]),.d(new_sboxw_192[23 : 16])),
+           sb8(.a(sboxw_192[31 : 24]),.d(new_sboxw_192[31 : 24]));
 
   always @ (posedge clk or negedge rst_n)
     begin: reg_update
@@ -94,6 +103,7 @@ module Key_Expansion (
             key_mem [i] <= 128'h0;
 
           rcon_reg         <= 8'h0;
+	  tmp_rcon         <= 8'h0;
           ready_reg        <= 1'b0;
           round_ctr_reg    <= 4'h0;
           key_mem_ctrl_reg <= CTRL_IDLE;
@@ -138,10 +148,10 @@ module Key_Expansion (
   // The round key generator logic for AES-128 and AES-256.
   //----------------------------------------------------------------
   always @*
-    begin:
+    begin:round_key_gen
       reg [31 : 0] w0, w1, w2, w3, w4, w5, w6, w7;
       reg [31 : 0] k0, k1, k2, k3;
-      reg [31 : 0] rconw, rotstw, tw, trw;
+      reg [31 : 0] rconw, rotstw, tw, trw, rotstw_192, trw_192;
 
       // Default assignments.
       key_mem_new   = 128'h0;
@@ -173,8 +183,11 @@ module Key_Expansion (
 
       rconw = {rcon_reg, 24'h0};
       tmp_sboxw = w7;
+      tmp_sboxw_192 = w5;
       rotstw = {new_sboxw[23 : 00], new_sboxw[31 : 24]};
+      rotstw_192 = {new_sboxw_192[23 : 00], new_sboxw_192[31:24]};
       trw = rotstw ^ rconw;
+      trw_192 = rotstw_192 ^ rconw;
       tw = new_sboxw;
 
       // Generate the specific round keys.
@@ -267,17 +280,17 @@ module Key_Expansion (
                   begin
                     if (round_ctr_reg[0] == 0)
                       begin
-                        k0 = w0 ^ trw;
-                        k1 = w1 ^ w0 ^ trw;
-                        k2 = w2 ^ w1 ^ w0 ^ trw;
-                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw;
+                        k0 = w0 ^ trw_192;
+                        k1 = w1 ^ w0 ^ trw_192;
+                        k2 = w2 ^ w1 ^ w0 ^ trw_192;
+                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw_192;
                       end
                     else
                       begin
                         k0 = w0 ^ trw;
                         k1 = w1 ^ w0 ^ trw;
-                        k2 = w2 ^ w1 ^ w0 ^ trw;
-                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw;
+                        k2 = 32'h0;
+                        k3 = 32'h0;
                         rcon_next = 1'b1;
                       end
 
@@ -305,7 +318,6 @@ module Key_Expansion (
   //----------------------------------------------------------------
   always @*
     begin : rcon_logic
-      reg [7 : 0] tmp_rcon;
       rcon_new = 8'h00;
       rcon_we  = 1'b0;
 
@@ -370,7 +382,7 @@ module Key_Expansion (
         AES_192_BIT_KEY:
           begin
             num_rounds = AES_192_NUM_ROUNDS;
-          end          
+          end
 
         default:
           begin
@@ -385,7 +397,7 @@ module Key_Expansion (
   // The FSM that controls the round key generation.
   //----------------------------------------------------------------
   always @*
-    begin:
+    begin:key_mem_ctrl
       // Default assignments.
       ready_new        = 1'b0;
       ready_we         = 1'b0;
@@ -440,3 +452,5 @@ module Key_Expansion (
 
     end // key_mem_ctrl
 
+
+endmodule // Key_Expansion
