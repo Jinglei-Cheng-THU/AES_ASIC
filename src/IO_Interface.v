@@ -18,7 +18,7 @@ module IO_Interface(
   output t_reset,   //reset Encrypt Core
   output reg op,        //indicate operations, 0 for decryption and 1 for encryption
   //above are interactions with Encrypt Core.
-  output reg [256:0]CipherKey,  //CipherKey, fill unused bits with 0.
+  output reg [255:0]CipherKey,  //CipherKey, fill unused bits with 0.
   output reg [3:0]Nk_val, //value of Nk, 4 for 128 bits key, 6 for 192 and 8 for 256
   output reg k_ready,   //indicate CipherKey data is ready
   output k_reset,   //reset key expansion Core
