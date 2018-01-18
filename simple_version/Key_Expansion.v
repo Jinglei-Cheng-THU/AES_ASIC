@@ -248,6 +248,48 @@ module Key_Expansion (
                   end
               end
 
+            AES_192_BIT_KEY:
+              begin
+                if (round_ctr_reg == 0)
+                  begin
+                    key_mem_new   = CipherKey[255 : 128];
+                    prev_key0_new = CipherKey[255 : 128];
+                    prev_key0_we  = 1'b1;
+                  end
+                else if (round_ctr_reg == 1)
+                  begin
+                    key_mem_new   = CipherKey[127 : 0];
+                    prev_key1_new = CipherKey[127 : 0];
+                    prev_key1_we  = 1'b1;
+                    rcon_next     = 1'b1;
+                  end
+                else
+                  begin
+                    if (round_ctr_reg[0] == 0)
+                      begin
+                        k0 = w0 ^ trw;
+                        k1 = w1 ^ w0 ^ trw;
+                        k2 = w2 ^ w1 ^ w0 ^ trw;
+                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw;
+                      end
+                    else
+                      begin
+                        k0 = w0 ^ trw;
+                        k1 = w1 ^ w0 ^ trw;
+                        k2 = w2 ^ w1 ^ w0 ^ trw;
+                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw;
+                        rcon_next = 1'b1;
+                      end
+
+                    // Store the generated round keys.
+                    key_mem_new   = {k0, k1, k2, k3};
+                    prev_key1_new = {k0, k1, k2, k3};
+                    prev_key1_we  = 1'b1;
+                    prev_key0_new = prev_key1_reg;
+                    prev_key0_we  = 1'b1;
+                  end
+              end
+
             default:
               begin
               end
@@ -324,6 +366,11 @@ module Key_Expansion (
           begin
             num_rounds = AES_256_NUM_ROUNDS;
           end
+
+        AES_192_BIT_KEY:
+          begin
+            num_rounds = AES_192_NUM_ROUNDS;
+          end          
 
         default:
           begin

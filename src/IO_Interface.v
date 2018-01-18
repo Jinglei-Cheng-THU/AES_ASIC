@@ -15,6 +15,7 @@ module IO_Interface(
   output [3:0]Nr,   //number of encryption rounds, 10, 12, 14 for 128, 192, 256 keys seperately
   output t_ready,   //indicate Plain_text data is ready
   output t_reset,   //reset Encrypt Core
+  output op,        //indicate operations, 0 for decryption and 1 for encryption
   //above are interactions with Encrypt Core.
   output [256:0]CipherKey,  //CipherKey, fill unused bits with 0.
   output [3:0]Nk_val, //value of Nk, 4 for 128 bits key, 6 for 192 and 8 for 256
