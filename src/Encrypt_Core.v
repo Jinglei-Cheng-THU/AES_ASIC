@@ -1,6 +1,7 @@
 `include "aes_tbox.v"
 `include "aes_sbox.v"
 `include "aes_tbox_r.v"
+`include "aes_sbox_r.v"
 module Encrypt_Core (
   input clk,
   input rst_n,
