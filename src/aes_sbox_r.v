@@ -1,5 +1,3 @@
-`timescale 1ns/100ps
-
 module aes_sbox_r(a,d);
 input	[7:0]	a;
 output	[7:0]	d;

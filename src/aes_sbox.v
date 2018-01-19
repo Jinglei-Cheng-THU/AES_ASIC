@@ -57,7 +57,6 @@
 //
 //
 
-`timescale 1ns/100ps
 
 module aes_sbox(a,d);
 input	[7:0]	a;
@@ -325,5 +324,3 @@ always @(a)
 	endcase
 
 endmodule
-
-

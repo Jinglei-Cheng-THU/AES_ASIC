@@ -1,7 +1,6 @@
 //Author: Jinglei Cheng from THU
 
 `include "aes_sbox.v"
-`timescale	1ns/100ps
 module Key_Expansion (
   input wire clk,
   input wire rst_n,
@@ -98,8 +97,8 @@ module Key_Expansion (
 
   always @ (posedge k_ready)
     begin: initialization
-	CipherKey0 = CipherKey;
-	Nk0 = Nk;
+  CipherKey0 = CipherKey;
+  Nk0 = Nk;
     end
 
   always @ (posedge clk or negedge rst_n)
@@ -112,7 +111,7 @@ module Key_Expansion (
             key_mem [i] <= 129'h0;
 
           rcon_reg         <= 8'h0;
-	  tmp_rcon         <= 8'h0;
+    tmp_rcon         <= 8'h0;
           ready_reg        <= 1'b0;
           round_ctr_reg    <= 4'h0;
           mem1 = 64'h0;
@@ -289,53 +288,54 @@ module Key_Expansion (
 
             AES_192_BIT_KEY:
               begin
-		if (round_ctr_reg == 0)
-		    begin
-			mem1 = CipherKey0[191 : 128];
-			mem2 = CipherKey0[127 : 64];
-			mem3 = CipherKey0[63 : 0];
-			key_mem_new = {1'b1, mem1, mem2};
-			prev_key0_new = {mem1, mem2};
-			prev_key0_we = 1'b1;
-			prev_key1_new = {mem3, 64'h0};
-			prev_key1_we = 1'b1;
-		    end
-		else if (round_ctr_reg%3 == 0)
-		    begin
-			key_mem_new = {1'b1, mem1, mem2};
-			prev_key0_new = {mem1, mem2};
-			prev_key0_we = 1'b1;
-		    end
-		else if (round_ctr_reg%3 == 1)
-		    begin
-			k0 = f0 ^ trw_192;
-			k1 = f0 ^ f1 ^ trw_192;
-			k2 = f0 ^ f1 ^ f2 ^ trw_192;
-			k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
-			k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
-			k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
-			key_mem_new = {1'b1, mem3, k0, k1};
-			prev_key0_new = {k0, k1, k2, k3};
-			prev_key1_new = {k4, k5, 64'h0};
-			prev_key0_we = 1'b1;
-			prev_key1_we = 1'b1;
-			rcon_next = 1'b1;
-		    end
-		else if (round_ctr_reg%3 == 2)
-		    begin
-			k0 = f0 ^ trw_192;
-			k1 = f0 ^ f1 ^ trw_192;
-			k2 = f0 ^ f1 ^ f2 ^ trw_192;
-			k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
-			k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
-			k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
-			key_mem_new = {1'b1, mem2, mem3};
-			prev_key0_new = {k0, k1, k2, k3};
-			prev_key1_new = {k4, k5, 64'h0};
-			prev_key0_we = 1'b1;
-			prev_key1_we = 1'b1;
-			rcon_next = 1'b1;
-		    end
+    if (round_ctr_reg == 0)
+        begin
+      mem1 = CipherKey0[191 : 128];
+      mem2 = CipherKey0[127 : 64];
+      mem3 = CipherKey0[63 : 0];
+      key_mem_new = {1'b1, mem1, mem2};
+      prev_key0_new = {mem1, mem2};
+      prev_key0_we = 1'b1;
+      prev_key1_new = {mem3, 64'h0};
+      prev_key1_we = 1'b1;
+            rcon_next = 1'b1;
+        end
+    else if (round_ctr_reg%3 == 0)
+        begin
+      key_mem_new = {1'b1, mem1, mem2};
+      prev_key0_new = {mem1, mem2};
+      prev_key0_we = 1'b1;
+        end
+    else if (round_ctr_reg%3 == 1)
+        begin
+      k0 = f0 ^ trw_192;
+      k1 = f0 ^ f1 ^ trw_192;
+      k2 = f0 ^ f1 ^ f2 ^ trw_192;
+      k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
+      k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
+      k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
+      key_mem_new = {1'b1, mem3, k0, k1};
+      prev_key0_new = {k0, k1, k2, k3};
+      prev_key1_new = {k4, k5, 64'h0};
+      prev_key0_we = 1'b1;
+      prev_key1_we = 1'b1;
+      rcon_next = 1'b1;
+        end
+    else if (round_ctr_reg%3 == 2)
+        begin
+      k0 = f0 ^ trw_192;
+      k1 = f0 ^ f1 ^ trw_192;
+      k2 = f0 ^ f1 ^ f2 ^ trw_192;
+      k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
+      k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
+      k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
+      key_mem_new = {1'b1, mem2, mem3};
+      prev_key0_new = {k0, k1, k2, k3};
+      prev_key1_new = {k4, k5, 64'h0};
+      prev_key0_we = 1'b1;
+      prev_key1_we = 1'b1;
+      rcon_next = 1'b1;
+        end
               end
 
             default:
