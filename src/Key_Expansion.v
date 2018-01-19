@@ -7,11 +7,10 @@ module Key_Expansion (
   input wire rst_n,
   input wire [255:0] CipherKey, //Ciphter Key provided by the host, start from lower bits.
   input wire k_ready,  //CiphterKey data is ready.
-  input wire [3:0] Nk,    //Nk in the document.
+  input wire [3:0] Nk,    //Nk0 in the document.
   input wire [3:0] Addr,  //address of required expanded key.
-  output wire [127:0] ex_key  //required expanded key with valid bit.
+  output wire [128:0] ex_key  //required expanded key with valid bit.
   );
-
   //----------------------------------------------------------------
   // Parameters.
   //----------------------------------------------------------------
@@ -32,8 +31,8 @@ module Key_Expansion (
   //----------------------------------------------------------------
   // Registers.
   //----------------------------------------------------------------
-  reg [127 : 0] key_mem [0 : 14];
-  reg [127 : 0] key_mem_new;
+  reg [128 : 0] key_mem [0 : 14];
+  reg [128 : 0] key_mem_new;
   reg           key_mem_we;
 
   reg [127 : 0] prev_key0_reg;
@@ -69,13 +68,17 @@ module Key_Expansion (
   reg [31 : 0]  tmp_sboxw_192;
   reg           round_key_update;
   reg [3 : 0]   num_rounds;
-  reg [127 : 0] tmp_ex_key;
+  reg [128 : 0] tmp_ex_key;
 
   wire [31 : 0] sboxw;
   wire [31 : 0] sboxw_192;
   wire [31 : 0] new_sboxw;
   wire [31 : 0] new_sboxw_192;
   wire ready;
+
+  reg [255 : 0] CipherKey0;
+  reg [3 : 0] Nk0;
+  reg [63 : 0] mem1, mem2, mem3;
   //----------------------------------------------------------------
   // Concurrent assignments for ports.
   //----------------------------------------------------------------
@@ -93,19 +96,28 @@ module Key_Expansion (
            sb7(.a(sboxw_192[23 : 16]),.d(new_sboxw_192[23 : 16])),
            sb8(.a(sboxw_192[31 : 24]),.d(new_sboxw_192[31 : 24]));
 
+  always @ (posedge k_ready)
+    begin: initialization
+	CipherKey0 = CipherKey;
+	Nk0 = Nk;
+    end
+
   always @ (posedge clk or negedge rst_n)
     begin: reg_update
       integer i;
 
       if (!rst_n)
         begin
-          for (i = 0 ; i < 4 ; i = i + 1)
-            key_mem [i] <= 128'h0;
+          for (i = 0 ; i < 15 ; i = i + 1)
+            key_mem [i] <= 129'h0;
 
           rcon_reg         <= 8'h0;
 	  tmp_rcon         <= 8'h0;
           ready_reg        <= 1'b0;
           round_ctr_reg    <= 4'h0;
+          mem1 = 64'h0;
+          mem2 = 64'h0;
+          mem3 = 64'h0;
           key_mem_ctrl_reg <= CTRL_IDLE;
         end
       else
@@ -150,21 +162,28 @@ module Key_Expansion (
   always @*
     begin:round_key_gen
       reg [31 : 0] w0, w1, w2, w3, w4, w5, w6, w7;
-      reg [31 : 0] k0, k1, k2, k3;
+      reg [31 : 0] f0, f1, f2, f3, f4, f5;
+      reg [31 : 0] k0, k1, k2, k3, k4, k5;
       reg [31 : 0] rconw, rotstw, tw, trw, rotstw_192, trw_192;
 
       // Default assignments.
-      key_mem_new   = 128'h0;
+      key_mem_new   = 129'h0;
       key_mem_we    = 1'b0;
       prev_key0_new = 128'h0;
       prev_key0_we  = 1'b0;
       prev_key1_new = 128'h0;
       prev_key1_we  = 1'b0;
 
+      mem1 = prev_key0_reg[127:64];
+      mem2 = prev_key0_reg[63:0];
+      mem3 = prev_key1_reg[127:64];
+
       k0 = 32'h0;
       k1 = 32'h0;
       k2 = 32'h0;
       k3 = 32'h0;
+      k4 = 32'h0;
+      k5 = 32'h0;
 
       rcon_set   = 1'b1;
       rcon_next  = 1'b0;
@@ -181,9 +200,16 @@ module Key_Expansion (
       w6 = prev_key1_reg[063 : 032];
       w7 = prev_key1_reg[031 : 000];
 
+      f0 = mem1[63 : 32];
+      f1 = mem1[31 : 0];
+      f2 = mem2[63 : 32];
+      f3 = mem2[31 : 0];
+      f4 = mem3[63 : 32];
+      f5 = mem3[31 : 0];
+
       rconw = {rcon_reg, 24'h0};
       tmp_sboxw = w7;
-      tmp_sboxw_192 = w5;
+      tmp_sboxw_192 = f5;
       rotstw = {new_sboxw[23 : 00], new_sboxw[31 : 24]};
       rotstw_192 = {new_sboxw_192[23 : 00], new_sboxw_192[31:24]};
       trw = rotstw ^ rconw;
@@ -195,13 +221,13 @@ module Key_Expansion (
         begin
           rcon_set   = 1'b0;
           key_mem_we = 1'b1;
-          case (Nk)
+          case (Nk0)
             AES_128_BIT_KEY:
               begin
                 if (round_ctr_reg == 0)
                   begin
-                    key_mem_new   = CipherKey[255 : 128];
-                    prev_key1_new = CipherKey[255 : 128];
+                    key_mem_new   = {1'b1, CipherKey0[127 : 0]};
+                    prev_key1_new = CipherKey0[127 : 0];
                     prev_key1_we  = 1'b1;
                     rcon_next     = 1'b1;
                   end
@@ -212,7 +238,7 @@ module Key_Expansion (
                     k2 = w6 ^ w5 ^ w4 ^ trw;
                     k3 = w7 ^ w6 ^ w5 ^ w4 ^ trw;
 
-                    key_mem_new   = {k0, k1, k2, k3};
+                    key_mem_new   = {1'b1, k0, k1, k2, k3};
                     prev_key1_new = {k0, k1, k2, k3};
                     prev_key1_we  = 1'b1;
                     rcon_next     = 1'b1;
@@ -223,14 +249,14 @@ module Key_Expansion (
               begin
                 if (round_ctr_reg == 0)
                   begin
-                    key_mem_new   = CipherKey[255 : 128];
-                    prev_key0_new = CipherKey[255 : 128];
+                    key_mem_new   = {1'b1, CipherKey0[255 : 128]};
+                    prev_key0_new = CipherKey0[255 : 128];
                     prev_key0_we  = 1'b1;
                   end
                 else if (round_ctr_reg == 1)
                   begin
-                    key_mem_new   = CipherKey[127 : 0];
-                    prev_key1_new = CipherKey[127 : 0];
+                    key_mem_new   = {1'b1, CipherKey0[127 : 0]};
+                    prev_key1_new = CipherKey0[127 : 0];
                     prev_key1_we  = 1'b1;
                     rcon_next     = 1'b1;
                   end
@@ -253,7 +279,7 @@ module Key_Expansion (
                       end
 
                     // Store the generated round keys.
-                    key_mem_new   = {k0, k1, k2, k3};
+                    key_mem_new   = {1'b1, k0, k1, k2, k3};
                     prev_key1_new = {k0, k1, k2, k3};
                     prev_key1_we  = 1'b1;
                     prev_key0_new = prev_key1_reg;
@@ -263,50 +289,59 @@ module Key_Expansion (
 
             AES_192_BIT_KEY:
               begin
-                if (round_ctr_reg == 0)
-                  begin
-                    key_mem_new   = CipherKey[255 : 128];
-                    prev_key0_new = CipherKey[255 : 128];
-                    prev_key0_we  = 1'b1;
-                  end
-                else if (round_ctr_reg == 1)
-                  begin
-                    key_mem_new   = CipherKey[127 : 0];
-                    prev_key1_new = CipherKey[127 : 0];
-                    prev_key1_we  = 1'b1;
-                    rcon_next     = 1'b1;
-                  end
-                else
-                  begin
-                    if (round_ctr_reg[0] == 0)
-                      begin
-                        k0 = w0 ^ trw_192;
-                        k1 = w1 ^ w0 ^ trw_192;
-                        k2 = w2 ^ w1 ^ w0 ^ trw_192;
-                        k3 = w3 ^ w2 ^ w1 ^ w0 ^ trw_192;
-                      end
-                    else
-                      begin
-                        k0 = w0 ^ trw;
-                        k1 = w1 ^ w0 ^ trw;
-                        k2 = 32'h0;
-                        k3 = 32'h0;
-                        rcon_next = 1'b1;
-                      end
-
-                    // Store the generated round keys.
-                    key_mem_new   = {k0, k1, k2, k3};
-                    prev_key1_new = {k0, k1, k2, k3};
-                    prev_key1_we  = 1'b1;
-                    prev_key0_new = prev_key1_reg;
-                    prev_key0_we  = 1'b1;
-                  end
+		if (round_ctr_reg == 0)
+		    begin
+			mem1 = CipherKey0[191 : 128];
+			mem2 = CipherKey0[127 : 64];
+			mem3 = CipherKey0[63 : 0];
+			key_mem_new = {1'b1, mem1, mem2};
+			prev_key0_new = {mem1, mem2};
+			prev_key0_we = 1'b1;
+			prev_key1_new = {mem3, 64'h0};
+			prev_key1_we = 1'b1;
+		    end
+		else if (round_ctr_reg%3 == 0)
+		    begin
+			key_mem_new = {1'b1, mem1, mem2};
+			prev_key0_new = {mem1, mem2};
+			prev_key0_we = 1'b1;
+		    end
+		else if (round_ctr_reg%3 == 1)
+		    begin
+			k0 = f0 ^ trw_192;
+			k1 = f0 ^ f1 ^ trw_192;
+			k2 = f0 ^ f1 ^ f2 ^ trw_192;
+			k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
+			k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
+			k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
+			key_mem_new = {1'b1, mem3, k0, k1};
+			prev_key0_new = {k0, k1, k2, k3};
+			prev_key1_new = {k4, k5, 64'h0};
+			prev_key0_we = 1'b1;
+			prev_key1_we = 1'b1;
+			rcon_next = 1'b1;
+		    end
+		else if (round_ctr_reg%3 == 2)
+		    begin
+			k0 = f0 ^ trw_192;
+			k1 = f0 ^ f1 ^ trw_192;
+			k2 = f0 ^ f1 ^ f2 ^ trw_192;
+			k3 = f0 ^ f1 ^ f2 ^ f3 ^ trw_192;
+			k4 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ trw_192;
+			k5 = f0 ^ f1 ^ f2 ^ f3 ^ f4 ^ f5 ^ trw_192;
+			key_mem_new = {1'b1, mem2, mem3};
+			prev_key0_new = {k0, k1, k2, k3};
+			prev_key1_new = {k4, k5, 64'h0};
+			prev_key0_we = 1'b1;
+			prev_key1_we = 1'b1;
+			rcon_next = 1'b1;
+		    end
               end
 
             default:
               begin
               end
-          endcase // case (Nk)
+          endcase // case (Nk0)
         end
     end // round_key_gen
 
@@ -368,7 +403,7 @@ module Key_Expansion (
     begin : num_rounds_logic
       num_rounds = 4'h0;
 
-      case (Nk)
+      case (Nk0)
         AES_128_BIT_KEY:
           begin
             num_rounds = AES_128_NUM_ROUNDS;
@@ -387,7 +422,7 @@ module Key_Expansion (
         default:
           begin
           end
-      endcase // case (Nk)
+      endcase // case (Nk0)
     end
 
   //----------------------------------------------------------------

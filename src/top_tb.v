@@ -1,3 +1,4 @@
+`include "TOP.v"
 `timescale 1ns/1ns
 module top_tb ();
   reg [127:0]Plain;
@@ -10,13 +11,12 @@ module top_tb ();
   reg START;
   wire OK;
   wire [7:0]DOUT;
-  wire clk_slow;
-  reg start_fetch;
   integer i,j;
   reg [7:0]Data_reg[0:63];
 
   initial begin
-    Plain <= 128'h1234567890ABCDEF01234567899ABCDE;
+    //Plain <= 128'h1234567890ABCDEF01234567899ABCDE;
+    Plain <= 128'h3C84F58C1E000953A415C5B1352F9892;
     Key <= 256'h112233445566778899AABBCCDDEEFF00;
     i <= 0;
     j <= 0;
@@ -59,7 +59,7 @@ module top_tb ();
     end
     if(i == 48) begin
       ADDR <= 64;
-      DIN = 8'h01;
+      DIN = 8'h00;
       WR <= 1;
     end
     if(i == 49) begin

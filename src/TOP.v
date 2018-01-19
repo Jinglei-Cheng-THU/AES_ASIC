@@ -1,3 +1,11 @@
+`define KEY_HIGH_TO_LOW
+`define PLAIN_HIGH_TO_LOW
+`define CIPHER_HIGH_TO_LOW  
+
+`include "Key_Expansion.v"
+`include "IO_Interface.v"
+`include "Encrypt_Core.v"
+
 module TOP (
   input CLK,
   input RSTB,
@@ -22,7 +30,7 @@ module TOP (
   wire k_ready;
   wire k_reset;
   wire clk_slow;
-  wire [127:0]Key;
+  wire [128:0]Key;
   wire [3:0]Addr;
 
   IO_Interface io(.CLK(CLK),.RSTB(RSTB),.DIN(DIN),.ADDR(ADDR),.WR(WR),
