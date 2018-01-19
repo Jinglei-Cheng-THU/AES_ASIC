@@ -1,6 +1,4 @@
-`include "aes_tbox.v"
 `include "aes_sbox.v"
-`include "aes_tbox_r.v"
 `include "aes_sbox_r.v"
 module Encrypt_Core (
   input clk,
@@ -13,8 +11,9 @@ module Encrypt_Core (
   output reg [3:0]Addr,
   output reg Core_Full,
   output reg c_ready,
-  output reg [127:0]Ciphertext
+  output [127:0]Ciphertext
 );
+  wire [127:0]Plain_text_r;
   wire [127:0]add_in;
   wire [127:0]key_in;
   wire [127:0]add_out;
@@ -25,26 +24,45 @@ module Encrypt_Core (
   reg [127:0]mix_in;
   wire [127:0]mix_out;
 
-
+  reg [127:0]Ciphertext_r;
   reg [127:0]round_result;
   reg [127:0]round_result_w;
   reg [3:0]rounds;
   reg operation;
   reg final_round;
+  generate
+    genvar re_;
+    for (re_ = 0; re_ < 16; re_ = re_ + 1)begin:fix_byte_arrange
+      `ifdef KEY_HIGH_TO_LOW
+        assign key_in[8*re_+7:8*re_] = Key[127-8*re_:120-8*re_];
+      `else
+        assign key_in[8*re_+7:8*re_] = Key[8*re_+7:8*re_];
+      `endif
+      `ifdef PLAIN_HIGH_TO_LOW
+        assign Plain_text_r[8*re_+7:8*re_] = Plain_text[127-8*re_:120-8*re_];
+      `else
+        assign Plain_text_r[8*re_+7:8*re_] = Plain_text[8*re_+7:8*re_];
+      `endif
+      `ifdef CIPHER_HIGH_TO_LOW
+        assign Ciphertext[8*re_+7:8*re_] = Ciphertext_r[127-8*re_:120-8*re_];
+      `else
+        assign Ciphertext[8*re_+7:8*re_] = Ciphertext_r[8*re_+7:8*re_];
+      `endif
+    end
+  endgenerate
 
-  assign key_in = Key[127:0];
   always @ (posedge clk or negedge rst_n) begin
     if(~rst_n) begin
-      Ciphertext <= 128'h0;
+      Ciphertext_r <= 128'h0;
       c_ready <= 0;
     end
     else begin
       if((operation && (Addr == rounds))|(~operation && (Addr == 4'h0))) begin
-        Ciphertext <= add_out;
+        Ciphertext_r <= add_out;
         c_ready <= 1;
       end
       else begin
-        Ciphertext <= 128'h0;
+        Ciphertext_r <= 128'h0;
         c_ready <= 0;
       end
     end
@@ -61,7 +79,7 @@ module Encrypt_Core (
     else begin
       if (~Core_Full) begin
         if (t_ready) begin
-          round_result <= Plain_text;
+          round_result <= Plain_text_r;
           Core_Full <= 1;
           operation <= op;
           rounds <= Nr;
