@@ -1,4 +1,3 @@
-`include "aes_sbox.v"
 `include "aes_sbox_r.v"
 module Encrypt_Core (
   input clk,
@@ -14,9 +13,11 @@ module Encrypt_Core (
   output [127:0]Ciphertext
 );
   wire [127:0]Plain_text_r;
-  wire [127:0]add_in;
+  reg [127:0]add_in;
+  reg [127:0]add_in_r;
   wire [127:0]key_in;
   wire [127:0]add_out;
+  wire [127:0]add_out_r;
 
   reg [127:0]ss_in;
   wire [127:0]ss_out;
@@ -27,6 +28,8 @@ module Encrypt_Core (
   reg [127:0]Ciphertext_r;
   reg [127:0]round_result;
   reg [127:0]round_result_w;
+  reg [127:0]round_result_r;
+  reg [127:0]round_result_r_w;
   reg [3:0]rounds;
   reg operation;
   reg final_round;
@@ -58,7 +61,7 @@ module Encrypt_Core (
     end
     else begin
       if((operation && (Addr == rounds))|(~operation && (Addr == 4'h0))) begin
-        Ciphertext_r <= add_out;
+        Ciphertext_r <= operation ? add_out : add_out_r;
         c_ready <= 1;
       end
       else begin
@@ -72,6 +75,7 @@ module Encrypt_Core (
     if (~rst_n) begin
       rounds <= 4'h0;
       round_result <= 127'h0;
+      round_result_r <= 127'h0;
       Core_Full <= 0;
       Addr <= 4'h1;
       operation <= 0;
@@ -80,6 +84,7 @@ module Encrypt_Core (
       if (~Core_Full) begin
         if (t_ready) begin
           round_result <= Plain_text_r;
+          round_result_r <= Plain_text_r;
           Core_Full <= 1;
           operation <= op;
           rounds <= Nr;
@@ -92,6 +97,7 @@ module Encrypt_Core (
         end
         else begin
           round_result <= round_result;
+          round_result_r <= round_result_r;
           Core_Full <= Core_Full;
           rounds <= rounds;
           operation <= operation;
@@ -116,9 +122,11 @@ module Encrypt_Core (
             Core_Full <= Core_Full;
           end
           round_result <= round_result_w;
+          round_result_r <= round_result_r_w;
         end
         else begin
           round_result <= round_result;
+          round_result_r <= round_result_r;
           Addr <= Addr;
           Core_Full <= Core_Full;
         end
@@ -128,6 +136,9 @@ module Encrypt_Core (
 
   always @ ( * ) begin
     if(operation) begin
+      add_in = round_result;
+      add_in_r = round_result_r;
+      round_result_r_w = round_result_r;
       if(Addr == rounds - 1) begin
         round_result_w = ss_out;
       end
@@ -138,20 +149,24 @@ module Encrypt_Core (
       ss_in = add_out;
     end
     else begin
-      round_result_w = ss_out;
-      mix_in = add_out;
+      add_in = round_result;
+      round_result_w = round_result;
+      ss_in = round_result_r;
+      mix_in = add_out_r;
       if(Addr == rounds) begin
-        ss_in = add_out;
+        add_in_r = round_result_r;
+        round_result_r_w = add_out_r;
       end
       else begin
-        ss_in = mix_out;
+        add_in_r = ss_out;
+        round_result_r_w = mix_out;
       end
     end
   end
 
-  assign add_in = round_result;
   //add round key
   add adder(add_in,key_in,add_out);
+  add adder_r(add_in_r,key_in,add_out_r);
 
   //tbox and shift row
   shift_and_sub ss(ss_in,operation,ss_out);

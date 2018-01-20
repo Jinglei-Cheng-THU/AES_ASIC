@@ -64,11 +64,16 @@ module IO_Interface(
       end
       else begin
         always @ (posedge CLK or negedge RSTB) begin
-          if(c_ready) begin
-            Data_reg[i] <= Ciphertext[8*(i-16)+7:8*(i-16)];
+          if(~RSTB) begin
+            Data_reg[i] <= 0;
           end
           else begin
-            Data_reg[i] <= Data_reg[i];
+            if(c_ready) begin
+              Data_reg[i] <= Ciphertext[8*(i-16)+7:8*(i-16)];
+            end
+            else begin
+              Data_reg[i] <= Data_reg[i];
+            end
           end
         end
       end
@@ -144,7 +149,6 @@ module IO_Interface(
 
   always @ (posedge CLK or negedge RSTB) begin
     if(~RSTB) begin
-      inter_ok <= 0;
       OK <= 0;
     end
     else begin
