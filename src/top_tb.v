@@ -15,9 +15,9 @@ module top_tb ();
   reg [7:0]Data_reg[0:63];
 
   initial begin
-    //Plain <= 128'h1234567890ABCDEF01234567899ABCDE;
-    Plain <= 128'h3C84F58C1E000953A415C5B1352F9892;
-    Key <= 256'h112233445566778899AABBCCDDEEFF00;
+    //Plain <= 128'h00112233445566778899aabbccddeeff;
+    Plain <= 128'hdda97ca4864cdfe06eaf70a0ec0d7191;
+    Key <= 256'h000102030405060708090a0b0c0d0e0f1011121314151617;
     i <= 0;
     j <= 0;
     START <= 0;
@@ -64,7 +64,7 @@ module top_tb ();
     end
     if(i == 49) begin
       ADDR <= 65;
-      DIN = 8'h03;
+      DIN = 8'h05;
       WR <= 1;
     end
     if(i == 55) begin
@@ -87,9 +87,14 @@ module top_tb ();
       DIN = 8'h01;
       WR <= 0;
     end
+    if (i > 80 && OK) begin
+      ADDR <= j+16;
+      DIN = 8'h01;
+      WR <= 0;
+    end
   end
   always @ (posedge CLK ) begin
-    if(i == 60 || j == 32)
+    if(i > 60 || j == 32)
       START <= 1;
     else
       START <= 0;
@@ -101,7 +106,6 @@ module top_tb ();
     else
       j <= 0;
   end
-
 
   TOP top(CLK,RSTB,DIN,ADDR,WR,START,OK,DOUT);
 endmodule // io_tb
