@@ -10,7 +10,7 @@ clk_slow<=0;
 end
 always @(posedge CLK)
 begin
-if(c==3'd7)
+if(c==3'd1)
 begin
 clk_slow<=~clk_slow;
 c<=3'd0;
